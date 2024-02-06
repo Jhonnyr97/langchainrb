@@ -108,6 +108,12 @@ module Langchain::LLM
         req.body = parameters
 
         req.options.on_data = proc do |chunk, size|
+
+          puts "-"*100
+          puts "chunk"
+          puts chunk
+          puts "-"*100
+
           json_chunk = JSON.parse(chunk)
 
           response += json_chunk.dig("response")
