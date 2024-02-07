@@ -231,6 +231,7 @@ module Langchain::LLM
         conn.request :json
         conn.response :json
         conn.response :raise_error
+        conn.adapter :net_http_persistent
       end
     end
   end
