@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-
+require "json"
 module Langchain::LLM
   # Interface to Ollama API.
   # Available models: https://ollama.ai/library
@@ -44,7 +44,7 @@ module Langchain::LLM
       system: nil,
       template: nil,
       context: nil,
-      stream: nil,
+      stream: false,
       raw: nil,
       mirostat: nil,
       mirostat_eta: nil,
@@ -104,21 +104,27 @@ module Langchain::LLM
 
       response = ""
 
-      client.post("api/generate") do |req|
-        req.body = parameters
+      if parameters[:stream]
+        client.post("api/generate") do |req|
+          req.body = parameters
 
-        req.options.on_data = proc do |chunk, size|
+          req.options.on_data = Proc.new do |chunk, size|
+            json_chunk = JSON.parse(chunk)
 
-          puts "-"*100
-          puts "chunk"
-          puts chunk
-          puts "-"*100
+            response += json_chunk.dig("response")
 
-          json_chunk = JSON.parse(chunk)
+            yield json_chunk, size if block
 
-          response += json_chunk.dig("response")
+          end
+        end
+      else
+        response = client.post("api/generate") do |req|
+          req.body = parameters
 
-          yield json_chunk, size if block
+          req.options.on_complete = Proc.new do |res|
+            json_response = JSON.parse(res.body)
+            response += json_response.dig("response")
+          end
         end
       end
 
@@ -227,13 +233,10 @@ module Langchain::LLM
 
     # @return [Faraday::Connection] Faraday client
     def client
-      Typhoeus::Config.verbose = true
-
       @client ||= Faraday.new(url: url) do |conn|
         conn.request :json
         conn.response :json
         conn.response :raise_error
-        conn.adapter :typhoeus
         conn.response :logger
       end
     end
