@@ -227,11 +227,14 @@ module Langchain::LLM
 
     # @return [Faraday::Connection] Faraday client
     def client
+      Typhoeus::Config.verbose = true
+
       @client ||= Faraday.new(url: url) do |conn|
         conn.request :json
         conn.response :json
         conn.response :raise_error
-        conn.adapter :net_http_persistent
+        conn.adapter :typhoeus
+        conn.response :logger
       end
     end
   end
