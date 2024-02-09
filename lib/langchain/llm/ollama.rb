@@ -118,14 +118,12 @@ module Langchain::LLM
           end
         end
       else
-        response = client.post("api/generate") do |req|
+        res = client.post("api/generate") do |req|
           req.body = parameters
-
-          req.options.on_complete = Proc.new do |res|
-            json_response = JSON.parse(res.body)
-            response += json_response.dig("response")
-          end
         end
+
+        res = JSON.parse(res.body)
+        response = res.dig("response")
       end
 
       Langchain::LLM::OllamaResponse.new(response, model: parameters[:model])
