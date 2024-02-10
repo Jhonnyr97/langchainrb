@@ -104,18 +104,23 @@ module Langchain::LLM
 
       response = ""
 
-      client.post("api/generate") do |req|
-        req.body = parameters
+      uri = URI(@url + "/api/generate")
 
-        req.options.on_data = proc do |chunk, size|
+      Net::HTTP.start(uri.host, uri.port) do |http|
+        request = Net::HTTP::Post.new(uri)
+        request.set_form_data(parameters)
 
-          chunk = StringIO.new(chunk)
+        http.request(request) do |response|
+          response.read_body do |chunk, size|
 
-          json_chunk = JSON.parse(chunk.string)
+            chunk = StringIO.new(chunk)
 
-          response += json_chunk.dig("response")
+            json_chunk = JSON.parse(chunk.string)
 
-          yield json_chunk, size if block
+            response += json_chunk.dig("response")
+
+            yield json_chunk, size if block
+          end
         end
       end
 
