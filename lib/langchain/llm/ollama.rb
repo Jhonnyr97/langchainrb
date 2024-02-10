@@ -110,8 +110,8 @@ module Langchain::LLM
         request = Net::HTTP::Post.new(uri)
         request.set_form_data(parameters)
 
-        http.request(request) do |response|
-          response.read_body do |chunk, size|
+        http.request(request) do |res|
+          res.read_body do |chunk, size|
 
             chunk = StringIO.new(chunk)
 
