@@ -123,7 +123,7 @@ module Langchain::LLM
 
       response_data.rewind
 
-      json_response = JSON.parse(response.read)
+      json_response = JSON.parse(response_data.read || {})
 
       Langchain::LLM::OllamaResponse.new(json_response, model: parameters[:model])
     end
