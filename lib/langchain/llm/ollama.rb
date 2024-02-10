@@ -113,9 +113,7 @@ module Langchain::LLM
         http.request(request) do |res|
           res.read_body do |chunk, size|
 
-            chunk = StringIO.new(chunk)
-
-            json_chunk = JSON.parse(chunk.string)
+            json_chunk = JSON.parse(chunk)
 
             response += json_chunk.dig("response")
 
