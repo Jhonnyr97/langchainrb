@@ -1,6 +1,4 @@
 # frozen_string_literal: true
-require "json"
-require 'net/http'
 
 module Langchain::LLM
   # Interface to Ollama API.
@@ -46,7 +44,7 @@ module Langchain::LLM
       system: nil,
       template: nil,
       context: nil,
-      stream: true,
+      stream: nil,
       raw: nil,
       mirostat: nil,
       mirostat_eta: nil,
@@ -104,28 +102,24 @@ module Langchain::LLM
 
       parameters[:options] = llm_parameters.compact
 
-      response_data = StringIO.new
+      response = ""
 
-      uri = URI.parse(@url + "api/generate")
+      client.post("api/generate") do |req|
+        req.body = parameters
 
-      Net::HTTP.start(uri.host, uri.port) do |http|
-        request = Net::HTTP::Post.new uri
+        req.options.on_data = proc do |chunk, size|
 
-        request.set_form_data(parameters)
+          chunk = StringIO.new(chunk)
 
-        http.request request do |response|
-          response.read_body do |chunk, size|
-            response_data.write chunk
-            yield chunk, size if block
-          end
+          json_chunk = JSON.parse(chunk.string)
+
+          response += json_chunk.dig("response")
+
+          yield json_chunk, size if block
         end
       end
 
-      response_data.rewind
-
-      json_response = JSON.parse(response_data.read || {})
-
-      Langchain::LLM::OllamaResponse.new(json_response, model: parameters[:model])
+      Langchain::LLM::OllamaResponse.new(response, model: parameters[:model])
     end
 
     # Generate a chat completion
@@ -234,7 +228,6 @@ module Langchain::LLM
         conn.request :json
         conn.response :json
         conn.response :raise_error
-        conn.response :logger
       end
     end
   end
