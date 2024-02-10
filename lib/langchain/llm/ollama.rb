@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 require "json"
+require 'net/http'
+
 module Langchain::LLM
   # Interface to Ollama API.
   # Available models: https://ollama.ai/library
@@ -44,7 +46,7 @@ module Langchain::LLM
       system: nil,
       template: nil,
       context: nil,
-      stream: false,
+      stream: true,
       raw: nil,
       mirostat: nil,
       mirostat_eta: nil,
@@ -102,31 +104,28 @@ module Langchain::LLM
 
       parameters[:options] = llm_parameters.compact
 
-      response = ""
+      response_data = StringIO.new
 
-      if parameters[:stream]
-        client.post("api/generate") do |req|
-          req.body = parameters
+      uri = URI.parse(@url + "api/generate")
 
-          req.options.on_data = Proc.new do |chunk, size|
-            json_chunk = JSON.parse(chunk)
+      Net::HTTP.start(uri.host, uri.port) do |http|
+        request = Net::HTTP::Post.new uri
 
-            response += json_chunk.dig("response")
+        request.set_form_data(parameters)
 
-            yield json_chunk, size if block
-
+        http.request request do |response|
+          response.read_body do |chunk, size|
+            response_data.write chunk
+            yield chunk, size if block
           end
         end
-      else
-        res = client.post("api/generate") do |req|
-          req.body = parameters
-        end
-
-        res = JSON.parse(res.body)
-        response = res.dig("response")
       end
 
-      Langchain::LLM::OllamaResponse.new(response, model: parameters[:model])
+      response_data.rewind
+
+      json_response = JSON.parse(response.read)
+
+      Langchain::LLM::OllamaResponse.new(json_response, model: parameters[:model])
     end
 
     # Generate a chat completion
