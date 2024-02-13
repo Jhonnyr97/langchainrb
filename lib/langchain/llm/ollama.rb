@@ -130,9 +130,8 @@ module Langchain::LLM
             json_chunk = JSON.parse(line_chunk)
 
             response += json_chunk.dig("response")
+            yield json_chunk, size if block
           end
-
-          yield json_chunk, size if block
         end
       end
 
